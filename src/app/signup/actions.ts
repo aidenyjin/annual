@@ -15,5 +15,5 @@ export async function signup(formData: FormData) {
     redirect(`/signup?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/login?error=Check%20your%20email%20to%20confirm%20your%20account");
+  redirect("/dashboard");
 }
