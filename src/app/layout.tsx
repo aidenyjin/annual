@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,6 +23,13 @@ export const metadata: Metadata = {
   description: "Turn your syllabus into a study plan",
 };
 
+const themeInitScript = `
+  try {
+    var stored = localStorage.getItem("theme");
+    if (stored) document.documentElement.dataset.theme = stored;
+  } catch (e) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,9 +40,13 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${sourceSerif.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_15%_-10%,rgba(201,100,66,0.12),transparent_45%),radial-gradient(circle_at_85%_10%,rgba(201,100,66,0.08),transparent_40%)]" />
         {children}
+        <ThemeToggle />
       </body>
     </html>
   );

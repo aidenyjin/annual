@@ -24,7 +24,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #1b1a16;
     --surface: #232219;
     --foreground: #f2efe6;
@@ -33,6 +33,16 @@
     --accent: #e08a63;
     --accent-foreground: #201a14;
   }
+}
+
+:root[data-theme="dark"] {
+  --background: #1b1a16;
+  --surface: #232219;
+  --foreground: #f2efe6;
+  --muted: #a49b89;
+  --border: #38352c;
+  --accent: #e08a63;
+  --accent-foreground: #201a14;
 }
 
 body {

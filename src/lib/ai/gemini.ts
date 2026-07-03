@@ -188,3 +188,37 @@ export async function generateHeadings(parsed: ParsedSyllabus): Promise<{ headin
   const text = await generateContent([{ text: prompt }], schema);
   return JSON.parse(text) as { headings: PlanHeading[] };
 }
+
+export type QuickSummary = { title: string; summary: string };
+
+/**
+ * A cheap skim (not a full parse) used to decide whether a newly-added file
+ * belongs in a class before committing to the expensive full parse.
+ */
+export async function quickSummarizeFile(
+  pdfBytes: Buffer,
+  displayName: string
+): Promise<QuickSummary> {
+  const uploaded = await uploadFile(pdfBytes, "application/pdf", displayName);
+  await waitForFileActive(uploaded.name);
+
+  const schema = {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      summary: { type: "string" },
+    },
+    required: ["title", "summary"],
+  };
+
+  const prompt =
+    "Skim this PDF just enough to identify what it is — do not do a full read. Return a short title " +
+    "(a few words) and one sentence describing its general subject or purpose.";
+
+  const text = await generateContent(
+    [{ text: prompt }, { fileData: { mimeType: "application/pdf", fileUri: uploaded.uri } }],
+    schema
+  );
+
+  return JSON.parse(text) as QuickSummary;
+}

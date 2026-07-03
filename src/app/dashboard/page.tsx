@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { CogIcon } from "@/components/ui/CogIcon";
 import { createClass } from "./actions";
 
 export default async function DashboardPage() {
@@ -31,8 +32,21 @@ export default async function DashboardPage() {
           const hasSyllabus = (c.syllabi?.length ?? 0) > 0;
           const hasPlan = (c.study_plans?.length ?? 0) > 0;
           return (
-            <Link key={c.id} href={`/dashboard/classes/${c.id}`}>
-              <Card className="flex h-full flex-col gap-3 p-5 transition-shadow hover:shadow-[0_1px_2px_rgba(30,25,15,0.06),0_16px_32px_-12px_rgba(30,25,15,0.24)]">
+            <Card
+              key={c.id}
+              className="relative flex h-full flex-col gap-3 p-5 transition-shadow hover:shadow-[0_1px_2px_rgba(30,25,15,0.06),0_16px_32px_-12px_rgba(30,25,15,0.24)]"
+            >
+              <Link
+                href={`/dashboard/classes/${c.id}/settings`}
+                aria-label="Class settings"
+                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-foreground/5 hover:text-accent"
+              >
+                <CogIcon />
+              </Link>
+              <Link
+                href={`/dashboard/classes/${c.id}`}
+                className="flex flex-1 flex-col gap-3 pr-8"
+              >
                 <span className="font-serif text-lg text-foreground">
                   {c.name}
                 </span>
@@ -53,8 +67,8 @@ export default async function DashboardPage() {
                     </span>
                   )}
                 </div>
-              </Card>
-            </Link>
+              </Link>
+            </Card>
           );
         })}
 
