@@ -9,13 +9,13 @@ import { createClass } from "./actions";
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: classes } = await supabase
     .from("classes")
     .select("id, name, term, syllabi(id), study_plans(id)")
-    .eq("user_id", session!.user.id)
+    .eq("user_id", user!.id)
     .order("created_at", { ascending: false });
 
   return (

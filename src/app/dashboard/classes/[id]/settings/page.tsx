@@ -4,13 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { FileUploadWithCheck } from "../FileUploadWithCheck";
+import { FileUpload } from "../FileUpload";
 import { FilesList } from "./FilesList";
 import { DeleteClassButton } from "./DeleteClassButton";
 import { updateClass } from "./actions";
 
-// checkFile/commitFile chain Gemini file upload + processing + generation,
-// which can run past the platform's default serverless timeout on large PDFs.
+// registerFile parses the syllabus (Gemini) and rebuilds the plan, which can
+// run past the platform's default serverless timeout on large documents.
 export const maxDuration = 60;
 
 export default async function ClassSettingsPage({
@@ -71,7 +71,7 @@ export default async function ClassSettingsPage({
         <h2 className="font-serif text-lg text-foreground">Files</h2>
         <FilesList classId={id} files={syllabi ?? []} />
         <div className="border-t border-border pt-4">
-          <FileUploadWithCheck classId={id} />
+          <FileUpload classId={id} />
         </div>
       </Card>
     </div>

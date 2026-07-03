@@ -6,9 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 export async function createClass(formData: FormData) {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const name = (formData.get("name") as string)?.trim();
   const term = (formData.get("term") as string)?.trim();
@@ -16,7 +16,7 @@ export async function createClass(formData: FormData) {
 
   const { data, error } = await supabase
     .from("classes")
-    .insert({ user_id: session.user.id, name, term: term || null })
+    .insert({ user_id: user.id, name, term: term || null })
     .select("id")
     .single();
 

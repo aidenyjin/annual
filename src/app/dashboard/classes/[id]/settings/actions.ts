@@ -7,9 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 export async function updateClass(classId: string, formData: FormData) {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) throw new Error("Unauthorized");
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
 
   const name = (formData.get("name") as string)?.trim();
   const term = (formData.get("term") as string)?.trim();
@@ -29,9 +29,9 @@ export async function updateClass(classId: string, formData: FormData) {
 export async function deleteClass(classId: string) {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) throw new Error("Unauthorized");
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
 
   const { data: syllabi } = await supabase
     .from("syllabi")

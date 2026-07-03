@@ -5,10 +5,10 @@ import { generateHoverDescription } from "@/lib/ai/groq";
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
