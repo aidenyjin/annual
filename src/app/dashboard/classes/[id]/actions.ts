@@ -45,7 +45,7 @@ export async function generatePlan(classId: string, syllabusId: string) {
 
   const { data: syllabus, error: syllabusError } = await supabase
     .from("syllabi")
-    .select("storage_path")
+    .select("storage_path, original_filename")
     .eq("id", syllabusId)
     .single();
   if (syllabusError || !syllabus) {
@@ -59,8 +59,8 @@ export async function generatePlan(classId: string, syllabusId: string) {
     throw new Error(downloadError?.message ?? "Could not download syllabus");
   }
 
-  const pdfBase64 = Buffer.from(await fileBlob.arrayBuffer()).toString("base64");
-  const parsed = await parseSyllabusPdf(pdfBase64);
+  const pdfBytes = Buffer.from(await fileBlob.arrayBuffer());
+  const parsed = await parseSyllabusPdf(pdfBytes, syllabus.original_filename);
 
   await supabase
     .from("syllabi")
@@ -82,6 +82,7 @@ export async function generatePlan(classId: string, syllabusId: string) {
     heading: h.heading,
     week_label: h.weekLabel ?? null,
     due_date: toDateOrNull(h.dueDate),
+    source_excerpt: h.details ?? null,
   }));
 
   const { error: topicsError } = await supabase

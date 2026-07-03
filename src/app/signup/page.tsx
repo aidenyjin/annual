@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { signup } from "./actions";
 
 export default async function SignupPage({
@@ -10,51 +13,38 @@ export default async function SignupPage({
 
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <form
-        action={signup}
-        className="w-full max-w-sm flex flex-col gap-4 border border-black/10 dark:border-white/10 rounded-xl p-6"
-      >
-        <h1 className="text-xl font-semibold">Sign up</h1>
+      <Card className="w-full max-w-sm p-8">
+        <form action={signup} className="flex flex-col gap-5">
+          <h1 className="font-serif text-2xl text-foreground">Sign up</h1>
 
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        )}
+          {error && (
+            <p className="rounded-lg bg-accent/10 px-3 py-2 text-sm text-accent">
+              {error}
+            </p>
+          )}
 
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            name="email"
-            type="email"
-            required
-            className="rounded-md border border-black/10 dark:border-white/20 bg-transparent px-3 py-2"
-          />
-        </label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">
+            Email
+            <Input name="email" type="email" required />
+          </label>
 
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            name="password"
-            type="password"
-            required
-            minLength={6}
-            className="rounded-md border border-black/10 dark:border-white/20 bg-transparent px-3 py-2"
-          />
-        </label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">
+            Password
+            <Input name="password" type="password" required minLength={6} />
+          </label>
 
-        <button
-          type="submit"
-          className="rounded-md bg-foreground text-background py-2 font-medium"
-        >
-          Sign up
-        </button>
+          <SubmitButton pendingText="Signing up…" className="mt-1 w-full">
+            Sign up
+          </SubmitButton>
 
-        <p className="text-sm text-center">
-          Already have an account?{" "}
-          <Link href="/login" className="underline">
-            Log in
-          </Link>
-        </p>
-      </form>
+          <p className="text-center text-sm text-muted">
+            Already have an account?{" "}
+            <Link href="/login" className="text-accent hover:underline">
+              Log in
+            </Link>
+          </p>
+        </form>
+      </Card>
     </div>
   );
 }

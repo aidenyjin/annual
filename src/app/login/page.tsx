@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { login } from "./actions";
 
 export default async function LoginPage({
@@ -10,50 +13,38 @@ export default async function LoginPage({
 
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <form
-        action={login}
-        className="w-full max-w-sm flex flex-col gap-4 border border-black/10 dark:border-white/10 rounded-xl p-6"
-      >
-        <h1 className="text-xl font-semibold">Log in</h1>
+      <Card className="w-full max-w-sm p-8">
+        <form action={login} className="flex flex-col gap-5">
+          <h1 className="font-serif text-2xl text-foreground">Log in</h1>
 
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        )}
+          {error && (
+            <p className="rounded-lg bg-accent/10 px-3 py-2 text-sm text-accent">
+              {error}
+            </p>
+          )}
 
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            name="email"
-            type="email"
-            required
-            className="rounded-md border border-black/10 dark:border-white/20 bg-transparent px-3 py-2"
-          />
-        </label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">
+            Email
+            <Input name="email" type="email" required />
+          </label>
 
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            name="password"
-            type="password"
-            required
-            className="rounded-md border border-black/10 dark:border-white/20 bg-transparent px-3 py-2"
-          />
-        </label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">
+            Password
+            <Input name="password" type="password" required />
+          </label>
 
-        <button
-          type="submit"
-          className="rounded-md bg-foreground text-background py-2 font-medium"
-        >
-          Log in
-        </button>
+          <SubmitButton pendingText="Logging in…" className="mt-1 w-full">
+            Log in
+          </SubmitButton>
 
-        <p className="text-sm text-center">
-          No account?{" "}
-          <Link href="/signup" className="underline">
-            Sign up
-          </Link>
-        </p>
-      </form>
+          <p className="text-center text-sm text-muted">
+            No account?{" "}
+            <Link href="/signup" className="text-accent hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </form>
+      </Card>
     </div>
   );
 }
