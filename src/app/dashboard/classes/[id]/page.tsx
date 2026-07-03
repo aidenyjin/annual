@@ -7,6 +7,10 @@ import { CogIcon } from "@/components/ui/CogIcon";
 import { regeneratePlan } from "./actions";
 import { HoverTopic } from "./HoverTopic";
 
+// Parsing/generating a study plan chains several AI calls together and can
+// run past the platform's default serverless timeout on large syllabi.
+export const maxDuration = 60;
+
 type TopicRow = {
   id: string;
   order_index: number;

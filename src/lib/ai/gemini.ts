@@ -50,7 +50,7 @@ async function uploadFile(bytes: Buffer, mimeType: string, displayName: string) 
   return file as { name: string; uri: string; state: string; mimeType: string };
 }
 
-async function waitForFileActive(name: string, timeoutMs = 60_000) {
+async function waitForFileActive(name: string, timeoutMs = 35_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const res = await fetch(`${GEMINI_BASE}/v1beta/${name}?key=${apiKey()}`);

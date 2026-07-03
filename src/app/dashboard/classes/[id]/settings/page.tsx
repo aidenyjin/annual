@@ -9,6 +9,10 @@ import { FilesList } from "./FilesList";
 import { DeleteClassButton } from "./DeleteClassButton";
 import { updateClass } from "./actions";
 
+// checkFile/commitFile chain Gemini file upload + processing + generation,
+// which can run past the platform's default serverless timeout on large PDFs.
+export const maxDuration = 60;
+
 export default async function ClassSettingsPage({
   params,
 }: {
