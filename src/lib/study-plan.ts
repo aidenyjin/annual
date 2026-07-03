@@ -69,7 +69,7 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
     .single();
   if (planError) throw new Error(planError.message);
 
-  const topicRows = headings.map((h, i) => ({
+  const topLevelRows = headings.map((h, i) => ({
     study_plan_id: plan.id,
     order_index: i,
     heading: h.heading,
@@ -78,8 +78,32 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
     source_excerpt: h.details ?? null,
   }));
 
-  const { error: topicsError } = await supabase
+  const { data: insertedTopLevel, error: topicsError } = await supabase
     .from("study_plan_topics")
-    .insert(topicRows);
+    .insert(topLevelRows)
+    .select("id, order_index");
   if (topicsError) throw new Error(topicsError.message);
+
+  const childRows = headings.flatMap((h, i) => {
+    if (!h.subtopics || h.subtopics.length === 0) return [];
+    const parentRow = insertedTopLevel!.find((r) => r.order_index === i);
+    if (!parentRow) return [];
+
+    return h.subtopics.map((sub, j) => ({
+      study_plan_id: plan.id,
+      order_index: j,
+      heading: sub.heading,
+      week_label: sub.weekLabel ?? null,
+      due_date: toDateOrNull(sub.dueDate),
+      source_excerpt: sub.details ?? null,
+      parent_id: parentRow.id,
+    }));
+  });
+
+  if (childRows.length > 0) {
+    const { error: childError } = await supabase
+      .from("study_plan_topics")
+      .insert(childRows);
+    if (childError) throw new Error(childError.message);
+  }
 }

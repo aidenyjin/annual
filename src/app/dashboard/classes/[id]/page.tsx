@@ -18,6 +18,7 @@ type TopicRow = {
   week_label: string | null;
   due_date: string | null;
   source_excerpt: string | null;
+  parent_id: string | null;
 };
 
 export default async function ClassPage({
@@ -44,7 +45,7 @@ export default async function ClassPage({
   const { data: plans } = await supabase
     .from("study_plans")
     .select(
-      "id, study_plan_topics(id, order_index, heading, week_label, due_date, source_excerpt)"
+      "id, study_plan_topics(id, order_index, heading, week_label, due_date, source_excerpt, parent_id)"
     )
     .eq("class_id", id)
     .order("created_at", { ascending: false })
@@ -53,9 +54,16 @@ export default async function ClassPage({
   const plan = plans?.[0] as
     | { id: string; study_plan_topics: TopicRow[] }
     | undefined;
-  const topics = [...(plan?.study_plan_topics ?? [])].sort(
-    (a, b) => a.order_index - b.order_index
-  );
+  const allTopics = plan?.study_plan_topics ?? [];
+  const topics = allTopics
+    .filter((t) => !t.parent_id)
+    .sort((a, b) => a.order_index - b.order_index)
+    .map((t) => ({
+      ...t,
+      subtopics: allTopics
+        .filter((s) => s.parent_id === t.id)
+        .sort((a, b) => a.order_index - b.order_index),
+    }));
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6 sm:p-10">
@@ -113,15 +121,29 @@ export default async function ClassPage({
       {topics.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="font-serif text-lg text-foreground">Study plan</h2>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             {topics.map((t) => (
-              <HoverTopic
-                key={t.id}
-                heading={t.heading}
-                weekLabel={t.week_label}
-                dueDate={t.due_date}
-                sourceExcerpt={t.source_excerpt}
-              />
+              <div key={t.id} className="flex flex-col gap-3">
+                <HoverTopic
+                  heading={t.heading}
+                  weekLabel={t.week_label}
+                  dueDate={t.due_date}
+                  sourceExcerpt={t.source_excerpt}
+                />
+                {t.subtopics.length > 0 && (
+                  <div className="ml-4 flex flex-col gap-3 border-l border-border pl-4 sm:ml-6 sm:pl-6">
+                    {t.subtopics.map((s) => (
+                      <HoverTopic
+                        key={s.id}
+                        heading={s.heading}
+                        weekLabel={s.week_label}
+                        dueDate={s.due_date}
+                        sourceExcerpt={s.source_excerpt}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </section>

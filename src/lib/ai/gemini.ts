@@ -150,11 +150,26 @@ export async function parseSyllabusPdf(
   return JSON.parse(text) as ParsedSyllabus;
 }
 
-export type PlanHeading = {
+export type PlanSubtopic = {
   heading: string;
   weekLabel?: string;
   dueDate?: string;
   details?: string;
+};
+
+export type PlanHeading = PlanSubtopic & {
+  subtopics?: PlanSubtopic[];
+};
+
+const subtopicSchema = {
+  type: "object",
+  properties: {
+    heading: { type: "string" },
+    weekLabel: { type: "string" },
+    dueDate: { type: "string" },
+    details: { type: "string" },
+  },
+  required: ["heading"],
 };
 
 export async function generateHeadings(parsed: ParsedSyllabus): Promise<{ headings: PlanHeading[] }> {
@@ -170,6 +185,7 @@ export async function generateHeadings(parsed: ParsedSyllabus): Promise<{ headin
             weekLabel: { type: "string" },
             dueDate: { type: "string" },
             details: { type: "string" },
+            subtopics: { type: "array", items: subtopicSchema },
           },
           required: ["heading"],
         },
@@ -179,10 +195,15 @@ export async function generateHeadings(parsed: ParsedSyllabus): Promise<{ headin
   };
 
   const prompt =
-    "Turn this parsed syllabus data into a clean, ordered list of study plan section headings a student " +
-    "can follow week by week. Keep each heading short (under 8 words) and student-facing. Carry over the " +
-    "relevant 'details' text (or a tightened version of it) for each heading so it can be shown later " +
-    "without re-reading the syllabus. Data:\n" +
+    "Turn this parsed syllabus data into a clean, ordered study plan a student can follow week by week. " +
+    "Most items should be standalone top-level headings. But when several consecutive topics are clearly " +
+    "sub-parts of one broader unit (e.g. 'Levers', 'Pulleys', and 'Inclined Planes' all belonging to a " +
+    "'Simple Machines' unit), group them: create one parent heading for the unit and list the sub-parts " +
+    "under its 'subtopics' array instead of as separate top-level headings. Don't force grouping where it " +
+    "doesn't naturally fit — most syllabi will have a mix of grouped units and standalone topics. Keep " +
+    "every heading short (under 8 words) and student-facing. Carry over the relevant 'details' text (or a " +
+    "tightened version of it) for each heading/subtopic so it can be shown later without re-reading the " +
+    "syllabus. Data:\n" +
     JSON.stringify(parsed);
 
   const text = await generateContent([{ text: prompt }], schema);
