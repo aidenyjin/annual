@@ -21,18 +21,15 @@ export default async function ClassSettingsPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: klass } = await supabase
-    .from("classes")
-    .select("id, name, term")
-    .eq("id", id)
-    .single();
+  const [{ data: klass }, { data: syllabi }] = await Promise.all([
+    supabase.from("classes").select("id, name, term").eq("id", id).single(),
+    supabase
+      .from("syllabi")
+      .select("id, original_filename, parsed_at")
+      .eq("class_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
   if (!klass) notFound();
-
-  const { data: syllabi } = await supabase
-    .from("syllabi")
-    .select("id, original_filename, parsed_at")
-    .eq("class_id", id)
-    .order("created_at", { ascending: false });
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8 p-6 sm:p-10">

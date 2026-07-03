@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { regenerateStudyPlan } from "@/lib/study-plan";
-import { quickSummarizeFile, type ParsedTopic } from "@/lib/ai/gemini";
-import { classifyFileRelevance, type RelevanceVerdict } from "@/lib/ai/groq";
+import { extractPdfText } from "@/lib/pdf";
+import { type ParsedTopic } from "@/lib/ai/gemini";
+import { quickSummarizeText, classifyFileRelevance, type RelevanceVerdict } from "@/lib/ai/groq";
 
 export type FileCheckResult = { verdict: RelevanceVerdict; reason: string };
 
@@ -50,7 +51,8 @@ export async function checkFile(
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const quick = await quickSummarizeFile(bytes, file.name);
+  const text = await extractPdfText(bytes);
+  const quick = await quickSummarizeText(text);
 
   const context = `Class: ${klass.name}${klass.term ? ` (${klass.term})` : ""}\nExisting topics: ${existingTopics
     .slice(0, 40)

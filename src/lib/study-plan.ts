@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseSyllabusPdf, generateHeadings, type ParsedSyllabus } from "@/lib/ai/gemini";
+import { extractPdfText } from "@/lib/pdf";
 
 function toDateOrNull(value?: string) {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
@@ -33,7 +34,8 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
       }
 
       const bytes = Buffer.from(await fileBlob.arrayBuffer());
-      parsed = await parseSyllabusPdf(bytes, syllabus.original_filename);
+      const text = await extractPdfText(bytes);
+      parsed = await parseSyllabusPdf(text);
 
       await supabase
         .from("syllabi")
@@ -84,10 +86,20 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
     .select("id, order_index");
   if (topicsError) throw new Error(topicsError.message);
 
+  // Leaf topics (no subtopics) get their lesson placeholder now; topics
+  // with subtopics don't — the subtopics themselves are the leaves.
+  const leafTopicIds: string[] = [];
+  const leafTopicTitles = new Map<string, string>();
+
   const childRows = headings.flatMap((h, i) => {
-    if (!h.subtopics || h.subtopics.length === 0) return [];
     const parentRow = insertedTopLevel!.find((r) => r.order_index === i);
     if (!parentRow) return [];
+
+    if (!h.subtopics || h.subtopics.length === 0) {
+      leafTopicIds.push(parentRow.id);
+      leafTopicTitles.set(parentRow.id, h.heading);
+      return [];
+    }
 
     return h.subtopics.map((sub, j) => ({
       study_plan_id: plan.id,
@@ -101,9 +113,26 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
   });
 
   if (childRows.length > 0) {
-    const { error: childError } = await supabase
+    const { data: insertedChildren, error: childError } = await supabase
       .from("study_plan_topics")
-      .insert(childRows);
+      .insert(childRows)
+      .select("id, heading");
     if (childError) throw new Error(childError.message);
+
+    for (const child of insertedChildren ?? []) {
+      leafTopicIds.push(child.id);
+      leafTopicTitles.set(child.id, child.heading);
+    }
+  }
+
+  if (leafTopicIds.length > 0) {
+    const lessonRows = leafTopicIds.map((topicId) => ({
+      topic_id: topicId,
+      order_index: 0,
+      title: leafTopicTitles.get(topicId)!,
+    }));
+
+    const { error: lessonError } = await supabase.from("lessons").insert(lessonRows);
+    if (lessonError) throw new Error(lessonError.message);
   }
 }

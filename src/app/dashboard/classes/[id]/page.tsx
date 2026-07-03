@@ -29,27 +29,23 @@ export default async function ClassPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: klass } = await supabase
-    .from("classes")
-    .select("id, name, term")
-    .eq("id", id)
-    .single();
+  const [{ data: klass }, { data: syllabi }, { data: plans }] = await Promise.all([
+    supabase.from("classes").select("id, name, term").eq("id", id).single(),
+    supabase
+      .from("syllabi")
+      .select("id, original_filename, parsed_at")
+      .eq("class_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("study_plans")
+      .select(
+        "id, study_plan_topics(id, order_index, heading, week_label, due_date, source_excerpt, parent_id)"
+      )
+      .eq("class_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ]);
   if (!klass) notFound();
-
-  const { data: syllabi } = await supabase
-    .from("syllabi")
-    .select("id, original_filename, parsed_at")
-    .eq("class_id", id)
-    .order("created_at", { ascending: false });
-
-  const { data: plans } = await supabase
-    .from("study_plans")
-    .select(
-      "id, study_plan_topics(id, order_index, heading, week_label, due_date, source_excerpt, parent_id)"
-    )
-    .eq("class_id", id)
-    .order("created_at", { ascending: false })
-    .limit(1);
 
   const plan = plans?.[0] as
     | { id: string; study_plan_topics: TopicRow[] }
@@ -125,6 +121,7 @@ export default async function ClassPage({
             {topics.map((t) => (
               <div key={t.id} className="flex flex-col gap-3">
                 <HoverTopic
+                  href={`/dashboard/classes/${id}/topics/${t.id}`}
                   heading={t.heading}
                   weekLabel={t.week_label}
                   dueDate={t.due_date}
@@ -135,6 +132,7 @@ export default async function ClassPage({
                     {t.subtopics.map((s) => (
                       <HoverTopic
                         key={s.id}
+                        href={`/dashboard/classes/${id}/topics/${s.id}`}
                         heading={s.heading}
                         weekLabel={s.week_label}
                         dueDate={s.due_date}
