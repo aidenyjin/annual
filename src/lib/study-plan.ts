@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { parseSyllabusPdf, generateHeadings, type ParsedSyllabus } from "@/lib/ai/gemini";
+import {
+  parseSyllabusPdf,
+  parseSyllabusFromFile,
+  generateHeadings,
+  type ParsedSyllabus,
+} from "@/lib/ai/gemini";
 import { extractPdfText } from "@/lib/pdf";
 
 function toDateOrNull(value?: string) {
@@ -35,7 +40,14 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
 
       const bytes = Buffer.from(await fileBlob.arrayBuffer());
       const text = await extractPdfText(bytes);
-      parsed = await parseSyllabusPdf(text);
+
+      // Scanned/image-only PDFs have no text layer to extract — fall back
+      // to Gemini reading the file directly (slower, so only used when the
+      // fast text path genuinely can't work).
+      parsed =
+        text.trim().length < 40
+          ? await parseSyllabusFromFile(bytes, syllabus.original_filename)
+          : await parseSyllabusPdf(text);
 
       await supabase
         .from("syllabi")

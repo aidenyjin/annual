@@ -23,24 +23,21 @@ export async function checkFile(
 ): Promise<FileCheckResult> {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Unauthorized");
 
   const file = readFile(formData);
 
-  const { data: klass } = await supabase
-    .from("classes")
-    .select("name, term")
-    .eq("id", classId)
-    .single();
+  const [{ data: klass }, { data: existing }] = await Promise.all([
+    supabase.from("classes").select("name, term").eq("id", classId).single(),
+    supabase
+      .from("syllabi")
+      .select("parsed_data")
+      .eq("class_id", classId)
+      .not("parsed_data", "is", null),
+  ]);
   if (!klass) throw new Error("Class not found");
-
-  const { data: existing } = await supabase
-    .from("syllabi")
-    .select("parsed_data")
-    .eq("class_id", classId)
-    .not("parsed_data", "is", null);
 
   const existingTopics = (existing ?? []).flatMap(
     (s) => ((s.parsed_data as { topics?: ParsedTopic[] } | null)?.topics ?? [])
@@ -52,6 +49,14 @@ export async function checkFile(
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const text = await extractPdfText(bytes);
+
+  if (text.trim().length < 40) {
+    return {
+      verdict: "ambiguous",
+      reason: "Couldn't read this file's content to check it automatically.",
+    };
+  }
+
   const quick = await quickSummarizeText(text);
 
   const context = `Class: ${klass.name}${klass.term ? ` (${klass.term})` : ""}\nExisting topics: ${existingTopics
@@ -65,13 +70,13 @@ export async function checkFile(
 export async function commitFile(classId: string, formData: FormData) {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Unauthorized");
 
   const file = readFile(formData);
 
-  const path = `${user.id}/${classId}/${Date.now()}-${file.name}`;
+  const path = `${session.user.id}/${classId}/${Date.now()}-${file.name}`;
   const { error: uploadError } = await supabase.storage
     .from("syllabi")
     .upload(path, file, { contentType: "application/pdf" });
@@ -93,9 +98,9 @@ export async function commitFile(classId: string, formData: FormData) {
 export async function deleteFile(classId: string, syllabusId: string) {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Unauthorized");
 
   const { data: syllabus, error } = await supabase
     .from("syllabi")
@@ -112,8 +117,9 @@ export async function deleteFile(classId: string, syllabusId: string) {
     .eq("id", syllabusId);
   if (deleteError) throw new Error(deleteError.message);
 
-  await regenerateStudyPlan(supabase, classId);
-
+  // Deliberately doesn't touch the existing study plan — regenerating means
+  // another Gemini call, which would make every delete slow for no reason.
+  // The user can hit "Regenerate study plan" if they want it updated.
   revalidatePath(`/dashboard/classes/${classId}`);
   revalidatePath(`/dashboard/classes/${classId}/settings`);
 }
