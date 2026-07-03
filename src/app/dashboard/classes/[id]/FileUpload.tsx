@@ -42,9 +42,24 @@ export function FileUpload({ classId }: { classId: string }) {
         .upload(path, file, { contentType: "application/pdf" });
       if (uploadError) throw new Error(uploadError.message);
 
-      // Now hand the server just the path (a tiny string) to record + parse.
+      // Extract the PDF text here in the browser rather than on the server —
+      // pdf.js is CPU-heavy and was eating the serverless function's time
+      // budget. The server just gets the resulting text.
+      let extractedText = "";
+      try {
+        // Lazy-loaded so pdf.js isn't in the initial page bundle.
+        const { extractPdfText } = await import("@/lib/pdf");
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        extractedText = await extractPdfText(bytes);
+      } catch {
+        // Scanned/odd PDFs may fail extraction here; the server falls back
+        // to reading the file directly from storage.
+        extractedText = "";
+      }
+
+      // Now hand the server just the path + extracted text (no file bytes).
       setPhase("processing");
-      await registerFile(classId, path, file.name);
+      await registerFile(classId, path, file.name, extractedText);
 
       reset();
       router.refresh();

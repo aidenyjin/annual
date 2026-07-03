@@ -19,7 +19,7 @@ function toDateOrNull(value?: string) {
 export async function regenerateStudyPlan(supabase: SupabaseClient, classId: string) {
   const { data: syllabi, error } = await supabase
     .from("syllabi")
-    .select("id, storage_path, original_filename, parsed_data")
+    .select("id, storage_path, original_filename, parsed_data, extracted_text")
     .eq("class_id", classId);
   if (error) throw new Error(error.message);
 
@@ -29,25 +29,32 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
     let parsed = syllabus.parsed_data as ParsedSyllabus | null;
 
     if (!parsed) {
-      const { data: fileBlob, error: downloadError } = await supabase.storage
-        .from("syllabi")
-        .download(syllabus.storage_path);
-      if (downloadError || !fileBlob) {
-        throw new Error(
-          downloadError?.message ?? `Could not download ${syllabus.original_filename}`
-        );
+      const cachedText = (syllabus.extracted_text as string | null)?.trim() ?? "";
+
+      if (cachedText.length >= 40) {
+        // Text was already extracted in the browser at upload time — no
+        // server-side PDF work, just the Gemini parse.
+        parsed = await parseSyllabusPdf(cachedText);
+      } else {
+        // No usable cached text (an older upload, or a scanned/image-only
+        // PDF). Download and try locally; if there's still no text layer,
+        // let Gemini read the file directly.
+        const { data: fileBlob, error: downloadError } = await supabase.storage
+          .from("syllabi")
+          .download(syllabus.storage_path);
+        if (downloadError || !fileBlob) {
+          throw new Error(
+            downloadError?.message ?? `Could not download ${syllabus.original_filename}`
+          );
+        }
+
+        const bytes = Buffer.from(await fileBlob.arrayBuffer());
+        const text = await extractPdfText(bytes);
+        parsed =
+          text.length < 40
+            ? await parseSyllabusFromFile(bytes, syllabus.original_filename)
+            : await parseSyllabusPdf(text);
       }
-
-      const bytes = Buffer.from(await fileBlob.arrayBuffer());
-      const text = await extractPdfText(bytes);
-
-      // Scanned/image-only PDFs have no text layer to extract — fall back
-      // to Gemini reading the file directly (slower, so only used when the
-      // fast text path genuinely can't work).
-      parsed =
-        text.trim().length < 40
-          ? await parseSyllabusFromFile(bytes, syllabus.original_filename)
-          : await parseSyllabusPdf(text);
 
       await supabase
         .from("syllabi")

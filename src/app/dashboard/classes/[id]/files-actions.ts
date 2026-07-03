@@ -13,7 +13,8 @@ import { regenerateStudyPlan } from "@/lib/study-plan";
 export async function registerFile(
   classId: string,
   storagePath: string,
-  originalFilename: string
+  originalFilename: string,
+  extractedText: string
 ) {
   const supabase = await createClient();
   const {
@@ -30,6 +31,7 @@ export async function registerFile(
     class_id: classId,
     storage_path: storagePath,
     original_filename: originalFilename,
+    extracted_text: extractedText || null,
   });
   if (insertError) throw new Error(insertError.message);
 
