@@ -126,8 +126,10 @@ const topicsSchema = {
 };
 
 const parseInstructions =
-  "Extract every topic, unit, assignment, and exam in the order a student should study/complete " +
-  "them — don't skip anything for length. For each item give: a short title, a week label if it's " +
+  "Extract only the conceptual study topics, lessons, and lectures that a student needs to learn/study " +
+  "in the order they are taught — don't skip anything for length. Do NOT extract practical lab experiments, " +
+  "homework assignments, projects, or exams as standalone topics or lessons (though you may mention them in the " +
+  "details of their corresponding conceptual topic if relevant). For each item give: a short title, a week label if it's " +
   "stated (e.g. 'Week 3'), a due date if stated (ISO 8601 yyyy-mm-dd, omit if unclear), and 2-3 " +
   "sentences of relevant detail (this detail is reused later, so make it useful on its own without " +
   "the rest of the document for context).";
@@ -222,7 +224,9 @@ export async function generateHeadings(parsed: ParsedSyllabus): Promise<{ headin
     "'Simple Machines' unit), group them: create one parent heading for the unit and list the sub-parts " +
     "under its 'subtopics' array instead of as separate top-level headings. Don't force grouping where it " +
     "doesn't naturally fit — most syllabi will have a mix of grouped units and standalone topics. Keep " +
-    "every heading short (under 8 words) and student-facing. Carry over the relevant 'details' text (or a " +
+    "every heading short (under 8 words) and student-facing. Ensure all headings and subtopics represent " +
+    "actual conceptual lessons or study topics; do NOT include practical labs, experiments, exams, or homework " +
+    "assignments as standalone headings or subtopics. Carry over the relevant 'details' text (or a " +
     "tightened version of it) for each heading/subtopic so it can be shown later without re-reading the " +
     "syllabus. Data:\n" +
     JSON.stringify(parsed);
