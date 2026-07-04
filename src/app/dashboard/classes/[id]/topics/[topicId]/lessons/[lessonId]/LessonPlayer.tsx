@@ -3,23 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-
-type TeachStep = { kind: "teach"; title: string; body: string };
-type QuestionStep = {
-  kind: "question";
-  question: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
-};
-type LessonStep = TeachStep | QuestionStep;
+import { QuestionView } from "@/components/lesson/QuestionViews";
+import { markLessonComplete } from "../../lessons-actions";
+import type { LessonStep } from "@/lib/lessons";
 
 export function LessonPlayer({
+  classId,
+  topicId,
+  lessonId,
   title,
   steps,
   backHref,
   nextHref,
 }: {
+  classId: string;
+  topicId: string;
+  lessonId: string;
   title: string;
   steps: LessonStep[];
   backHref: string;
@@ -27,7 +26,7 @@ export function LessonPlayer({
 }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
-  const [picked, setPicked] = useState<number | null>(null);
+  const [answered, setAnswered] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [questionsSeen, setQuestionsSeen] = useState(0);
   const [done, setDone] = useState(false);
@@ -36,25 +35,28 @@ export function LessonPlayer({
   const total = steps.length;
   const progress = done ? 100 : Math.round((index / total) * 100);
 
-  function advance() {
+  async function advance() {
     if (index + 1 >= total) {
       setDone(true);
+      try {
+        await markLessonComplete(classId, topicId, lessonId);
+      } catch {
+        // Completion is best-effort; don't block the celebration screen.
+      }
     } else {
       setIndex(index + 1);
-      setPicked(null);
+      setAnswered(false);
     }
   }
 
-  function checkAnswer(choice: number, correctIndex: number) {
-    if (picked !== null) return;
-    setPicked(choice);
+  function onAnswered(correct: boolean) {
+    setAnswered(true);
     setQuestionsSeen((n) => n + 1);
-    if (choice === correctIndex) setCorrectCount((n) => n + 1);
+    if (correct) setCorrectCount((n) => n + 1);
   }
 
   return (
     <div className="mx-auto flex min-h-[80vh] w-full max-w-2xl flex-col p-6 sm:p-10">
-      {/* Progress bar + exit */}
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -86,16 +88,12 @@ export function LessonPlayer({
               <Button variant="secondary" onClick={() => router.push(backHref)}>
                 Back to topic
               </Button>
-              {nextHref && (
-                <Button onClick={() => router.push(nextHref)}>Next lesson</Button>
-              )}
+              {nextHref && <Button onClick={() => router.push(nextHref)}>Next lesson</Button>}
             </div>
           </div>
         ) : step.kind === "teach" ? (
           <div className="flex flex-col gap-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              {title}
-            </p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">{title}</p>
             <h2 className="font-serif text-2xl text-foreground">{step.title}</h2>
             {step.body.split("\n\n").map((para, i) => (
               <p key={i} className="whitespace-pre-wrap leading-relaxed text-foreground">
@@ -104,87 +102,20 @@ export function LessonPlayer({
             ))}
           </div>
         ) : (
-          <QuestionCard
-            step={step}
-            picked={picked}
-            onPick={(choice) => checkAnswer(choice, step.correctIndex)}
-          />
+          <QuestionView key={index} step={step} onAnswered={onAnswered} />
         )}
       </div>
 
-      {/* Footer action */}
       {!done && (
         <div className="border-t border-border pt-5">
-          {step.kind === "teach" ? (
-            <Button className="w-full" onClick={advance}>
-              Continue
-            </Button>
-          ) : (
-            <Button
-              className="w-full"
-              disabled={picked === null}
-              onClick={advance}
-            >
-              {index + 1 >= total ? "Finish" : "Continue"}
-            </Button>
-          )}
+          <Button
+            className="w-full"
+            disabled={step.kind !== "teach" && !answered}
+            onClick={advance}
+          >
+            {index + 1 >= total ? "Finish" : "Continue"}
+          </Button>
         </div>
-      )}
-    </div>
-  );
-}
-
-function QuestionCard({
-  step,
-  picked,
-  onPick,
-}: {
-  step: QuestionStep;
-  picked: number | null;
-  onPick: (choice: number) => void;
-}) {
-  const answered = picked !== null;
-
-  return (
-    <div className="flex flex-col gap-5">
-      <h2 className="font-serif text-xl text-foreground">{step.question}</h2>
-      <div className="flex flex-col gap-3">
-        {step.options.map((option, i) => {
-          const isPicked = picked === i;
-          const isCorrect = i === step.correctIndex;
-
-          let tone = "border-border bg-background/60 text-foreground hover:border-accent/50";
-          if (answered && isCorrect) {
-            tone = "border-green-600/50 bg-green-600/10 text-foreground";
-          } else if (answered && isPicked && !isCorrect) {
-            tone = "border-red-600/50 bg-red-600/10 text-foreground";
-          } else if (answered) {
-            tone = "border-border bg-background/60 text-muted";
-          }
-
-          return (
-            <button
-              key={i}
-              type="button"
-              disabled={answered}
-              onClick={() => onPick(i)}
-              className={`rounded-xl border px-4 py-3 text-left text-sm transition-colors disabled:cursor-default ${tone}`}
-            >
-              {option}
-              {answered && isCorrect && <span className="ml-2 text-green-600">✓</span>}
-              {answered && isPicked && !isCorrect && (
-                <span className="ml-2 text-red-600">✗</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      {answered && (
-        <p className="rounded-xl bg-accent/10 px-4 py-3 text-sm text-foreground">
-          {picked === step.correctIndex
-            ? step.explanation
-            : `Not quite. ${step.explanation}`}
-        </p>
       )}
     </div>
   );

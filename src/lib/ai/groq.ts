@@ -36,13 +36,29 @@ async function chatCompletion(options: {
   return (text as string).trim();
 }
 
-export async function generateHoverDescription(heading: string, context?: string) {
-  const text = await chatCompletion({
+export type LessonPlan = { title: string; outline: string[] };
+
+/**
+ * Groq plans the lessons for a topic — cheap "what to teach" step. Returns
+ * each lesson's title and dot-point outline (what it will examine). Cerebras
+ * later turns each into full stepped content.
+ */
+export async function planLessonsForTopic(
+  heading: string,
+  excerpt: string | null
+): Promise<LessonPlan[]> {
+  const raw = await chatCompletion({
+    json: true,
+    temperature: 0.4,
     system:
-      "You write brief, concrete 1-2 sentence study plan descriptions. No preamble, no markdown, no quotes.",
-    user: `Study plan topic: "${heading}"${
-      context ? `\nSyllabus context: ${context}` : ""
-    }\n\nWrite a 1-2 sentence description of what to study or do for this topic.`,
+      "You plan a short sequence of lessons for one study topic. Respond with strict JSON: " +
+      '{"lessons": [{"title": "<short lesson title>", "outline": ["<dot point>", ...]}, ...]}. ' +
+      "Give 2-4 lessons that build in order, each with 3-4 concise outline points describing the " +
+      "concepts that lesson will teach. Focus on what a student needs to learn — not labs, homework, " +
+      "or assignments.",
+    user: `Topic: "${heading}"${excerpt ? `\nContext: ${excerpt}` : ""}`,
   });
-  return text;
+
+  const parsed = JSON.parse(raw) as { lessons?: LessonPlan[] };
+  return (parsed.lessons ?? []).filter((l) => l.title && Array.isArray(l.outline));
 }

@@ -19,6 +19,7 @@ type TopicRow = {
   due_date: string | null;
   source_excerpt: string | null;
   parent_id: string | null;
+  completed_at: string | null;
 };
 
 export default async function ClassPage({
@@ -39,7 +40,7 @@ export default async function ClassPage({
     supabase
       .from("study_plans")
       .select(
-        "id, study_plan_topics(id, order_index, heading, week_label, due_date, source_excerpt, parent_id)"
+        "id, study_plan_topics(id, order_index, heading, week_label, due_date, source_excerpt, parent_id, completed_at)"
       )
       .eq("class_id", id)
       .order("created_at", { ascending: false })
@@ -126,6 +127,7 @@ export default async function ClassPage({
                   weekLabel={t.week_label}
                   dueDate={t.due_date}
                   description={t.source_excerpt}
+                  completed={!!t.completed_at}
                 />
                 {t.subtopics.length > 0 && (
                   <div className="ml-4 flex flex-col gap-3 border-l border-border pl-4 sm:ml-6 sm:pl-6">
@@ -137,6 +139,7 @@ export default async function ClassPage({
                         weekLabel={s.week_label}
                         dueDate={s.due_date}
                         description={s.source_excerpt}
+                        completed={!!s.completed_at}
                       />
                     ))}
                   </div>

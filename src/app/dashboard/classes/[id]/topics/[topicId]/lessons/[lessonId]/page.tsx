@@ -1,16 +1,11 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LessonPlayer } from "./LessonPlayer";
+import { PreparingLesson } from "./PreparingLesson";
+import type { LessonStep } from "@/lib/lessons";
 
-type LessonStep =
-  | { kind: "teach"; title: string; body: string }
-  | {
-      kind: "question";
-      question: string;
-      options: string[];
-      correctIndex: number;
-      explanation: string;
-    };
+// Lazy lesson generation (Cerebras) runs from this route on first open.
+export const maxDuration = 60;
 
 export default async function LessonPage({
   params,
@@ -20,7 +15,6 @@ export default async function LessonPage({
   const { id, topicId, lessonId } = await params;
   const supabase = await createClient();
 
-  // Load the lesson, verifying ownership through the topic → plan → class chain.
   const { data: lesson } = await supabase
     .from("lessons")
     .select(
@@ -31,9 +25,15 @@ export default async function LessonPage({
     .eq("study_plan_topics.study_plans.class_id", id)
     .single<{ id: string; order_index: number; title: string; steps: LessonStep[] | null }>();
 
-  if (!lesson || !lesson.steps) notFound();
+  if (!lesson) notFound();
 
-  // Find the next lesson in this topic (for the "Next lesson" button).
+  // No content yet → generate it on the fly behind a full-screen loader.
+  if (!lesson.steps || lesson.steps.length === 0) {
+    return (
+      <PreparingLesson classId={id} topicId={topicId} lessonId={lessonId} />
+    );
+  }
+
   const { data: siblings } = await supabase
     .from("lessons")
     .select("id, order_index")
@@ -50,6 +50,9 @@ export default async function LessonPage({
 
   return (
     <LessonPlayer
+      classId={id}
+      topicId={topicId}
+      lessonId={lessonId}
       title={lesson.title}
       steps={lesson.steps}
       backHref={backHref}
