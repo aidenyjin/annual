@@ -30,8 +30,7 @@ export async function generateLessons(classId: string, topicId: string) {
     order_index: i,
     title: lesson.title,
     outline: lesson.outline,
-    content: lesson.content,
-    quiz: lesson.quiz,
+    steps: lesson.steps,
   }));
 
   const { error: insertError } = await supabase.from("lessons").insert(rows);

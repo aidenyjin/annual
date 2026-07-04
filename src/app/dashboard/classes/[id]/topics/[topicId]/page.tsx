@@ -3,10 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { Quiz } from "./Quiz";
 import { generateLessons } from "./lessons-actions";
-
-type QuizQuestion = { question: string; options: string[]; correctIndex: number };
 
 type Topic = {
   id: string;
@@ -22,9 +19,8 @@ type Lesson = {
   id: string;
   order_index: number;
   title: string;
-  content: string | null;
   outline: string[] | null;
-  quiz: QuizQuestion[] | null;
+  steps: unknown[] | null;
 };
 
 type NavTopic = { id: string; heading: string; order_index: number; parent_id: string | null };
@@ -68,7 +64,7 @@ export default async function TopicPage({
       .order("order_index"),
     supabase
       .from("lessons")
-      .select("id, order_index, title, content, outline, quiz")
+      .select("id, order_index, title, outline, steps")
       .eq("topic_id", topicId)
       .order("order_index"),
   ]);
@@ -90,7 +86,7 @@ export default async function TopicPage({
 
   const isUnit = (subtopics?.length ?? 0) > 0;
   const lessonRows = (lessons ?? []) as Lesson[];
-  const hasLessons = lessonRows.some((l) => l.content);
+  const hasLessons = lessonRows.some((l) => l.steps && l.steps.length > 0);
 
   // Prev/next across the flattened leaf sequence (only meaningful on leaves).
   const leaves = flattenLeaves((allTopics ?? []) as NavTopic[]);
@@ -153,33 +149,30 @@ export default async function TopicPage({
 
           {hasLessons ? (
             <div className="flex flex-col gap-4">
-              {lessonRows.map((lesson) => (
-                <Card key={lesson.id} className="flex flex-col gap-3 p-5">
-                  <h3 className="font-serif text-lg text-foreground">{lesson.title}</h3>
-
-                  {lesson.outline && lesson.outline.length > 0 && (
-                    <ul className="flex flex-col gap-1">
-                      {lesson.outline.map((point, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-muted">
-                          <span className="text-accent">•</span>
-                          {point}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {lesson.content && (
-                    <div className="flex flex-col gap-3 border-t border-border pt-3 text-sm text-foreground">
-                      {lesson.content.split("\n\n").map((para, i) => (
-                        <p key={i} className="whitespace-pre-wrap leading-relaxed">
-                          {para}
-                        </p>
-                      ))}
+              {lessonRows.map((lesson, i) => (
+                <Link
+                  key={lesson.id}
+                  href={`/dashboard/classes/${id}/topics/${topicId}/lessons/${lesson.id}`}
+                >
+                  <Card className="flex flex-col gap-3 p-5 transition-shadow hover:shadow-[0_1px_2px_rgba(30,25,15,0.06),0_16px_32px_-12px_rgba(30,25,15,0.24)]">
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="font-serif text-lg text-foreground">
+                        {i + 1}. {lesson.title}
+                      </h3>
+                      <span className="shrink-0 text-sm text-accent">Start →</span>
                     </div>
-                  )}
-
-                  {lesson.quiz && <Quiz questions={lesson.quiz} />}
-                </Card>
+                    {lesson.outline && lesson.outline.length > 0 && (
+                      <ul className="flex flex-col gap-1">
+                        {lesson.outline.map((point, j) => (
+                          <li key={j} className="flex gap-2 text-sm text-muted">
+                            <span className="text-accent">•</span>
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                </Link>
               ))}
             </div>
           ) : (
