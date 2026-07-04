@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { CogIcon } from "@/components/ui/CogIcon";
 import { regeneratePlan } from "./actions";
-import { HoverTopic } from "./HoverTopic";
+import { TopicCard } from "./TopicCard";
 
 // Parsing/generating a study plan chains several AI calls together and can
 // run past the platform's default serverless timeout on large syllabi.
@@ -120,23 +120,23 @@ export default async function ClassPage({
           <div className="flex flex-col gap-4">
             {topics.map((t) => (
               <div key={t.id} className="flex flex-col gap-3">
-                <HoverTopic
+                <TopicCard
                   href={`/dashboard/classes/${id}/topics/${t.id}`}
                   heading={t.heading}
                   weekLabel={t.week_label}
                   dueDate={t.due_date}
-                  sourceExcerpt={t.source_excerpt}
+                  description={t.source_excerpt}
                 />
                 {t.subtopics.length > 0 && (
                   <div className="ml-4 flex flex-col gap-3 border-l border-border pl-4 sm:ml-6 sm:pl-6">
                     {t.subtopics.map((s) => (
-                      <HoverTopic
+                      <TopicCard
                         key={s.id}
                         href={`/dashboard/classes/${id}/topics/${s.id}`}
                         heading={s.heading}
                         weekLabel={s.week_label}
                         dueDate={s.due_date}
-                        sourceExcerpt={s.source_excerpt}
+                        description={s.source_excerpt}
                       />
                     ))}
                   </div>

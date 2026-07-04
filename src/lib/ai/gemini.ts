@@ -128,11 +128,11 @@ const topicsSchema = {
 const parseInstructions =
   "Extract only the conceptual study topics, lessons, and lectures that a student needs to learn/study " +
   "in the order they are taught — don't skip anything for length. Do NOT extract practical lab experiments, " +
-  "homework assignments, projects, or exams as standalone topics or lessons (though you may mention them in the " +
-  "details of their corresponding conceptual topic if relevant). For each item give: a short title, a week label if it's " +
-  "stated (e.g. 'Week 3'), a due date if stated (ISO 8601 yyyy-mm-dd, omit if unclear), and 2-3 " +
-  "sentences of relevant detail (this detail is reused later, so make it useful on its own without " +
-  "the rest of the document for context).";
+  "homework assignments, projects, or exams as topics or lessons. For each item give: a short title, a week " +
+  "label if it's stated (e.g. 'Week 3'), a due date if stated (ISO 8601 yyyy-mm-dd, omit if unclear), and 2-3 " +
+  "sentences of detail that explain the concepts a student should understand for this topic. The detail must " +
+  "describe what to learn — NOT lab procedures, experiments, homework tasks, projects, or assignment " +
+  "instructions — and should be useful on its own without the rest of the document for context.";
 
 /**
  * The single "reads the whole syllabus" pass. Its output (parsed_data) is

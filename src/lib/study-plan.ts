@@ -83,6 +83,24 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
 
   const { headings } = await generateHeadings({ topics: combinedTopics });
 
+  // Dedupe: the model sometimes emits both a standalone topic and a grouped
+  // unit with the same name (e.g. a "Simple Machines" overview plus a
+  // "Simple Machines" unit holding Levers/Pulleys). Keep the one with
+  // subtopics and drop the duplicate so the plan doesn't show it twice.
+  const byName = new Map<string, (typeof headings)[number]>();
+  for (const h of headings) {
+    const key = h.heading.trim().toLowerCase();
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, h);
+      continue;
+    }
+    const existingHasSubs = (existing.subtopics?.length ?? 0) > 0;
+    const currentHasSubs = (h.subtopics?.length ?? 0) > 0;
+    if (currentHasSubs && !existingHasSubs) byName.set(key, h);
+  }
+  const dedupedHeadings = Array.from(byName.values());
+
   const { data: plan, error: planError } = await supabase
     .from("study_plans")
     .insert({ class_id: classId })
@@ -90,7 +108,7 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
     .single();
   if (planError) throw new Error(planError.message);
 
-  const topLevelRows = headings.map((h, i) => ({
+  const topLevelRows = dedupedHeadings.map((h, i) => ({
     study_plan_id: plan.id,
     order_index: i,
     heading: h.heading,
@@ -107,7 +125,7 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
 
   // Subtopics for any grouped units. Lessons are NOT created here — they're
   // generated on demand per topic via the "Generate lessons" button.
-  const childRows = headings.flatMap((h, i) => {
+  const childRows = dedupedHeadings.flatMap((h, i) => {
     const parentRow = insertedTopLevel!.find((r) => r.order_index === i);
     if (!parentRow || !h.subtopics || h.subtopics.length === 0) return [];
 
