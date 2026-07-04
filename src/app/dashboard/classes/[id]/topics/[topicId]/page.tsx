@@ -2,6 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Quiz } from "./Quiz";
+import { generateLessons } from "./lessons-actions";
+
+type QuizQuestion = { question: string; options: string[]; correctIndex: number };
 
 type Topic = {
   id: string;
@@ -10,6 +15,7 @@ type Topic = {
   due_date: string | null;
   source_excerpt: string | null;
   parent_id: string | null;
+  study_plan_id: string;
 };
 
 type Lesson = {
@@ -17,7 +23,26 @@ type Lesson = {
   order_index: number;
   title: string;
   content: string | null;
+  outline: string[] | null;
+  quiz: QuizQuestion[] | null;
 };
+
+type NavTopic = { id: string; heading: string; order_index: number; parent_id: string | null };
+
+// Flatten the plan into the order a student reads it: walk each top-level
+// topic, descending into its subtopics; a topic with no subtopics is itself
+// a leaf. Units (parents with subtopics) are containers, not stops.
+function flattenLeaves(all: NavTopic[]): NavTopic[] {
+  const byOrder = (a: NavTopic, b: NavTopic) => a.order_index - b.order_index;
+  const topLevel = all.filter((t) => !t.parent_id).sort(byOrder);
+  const leaves: NavTopic[] = [];
+  for (const t of topLevel) {
+    const subs = all.filter((s) => s.parent_id === t.id).sort(byOrder);
+    if (subs.length > 0) leaves.push(...subs);
+    else leaves.push(t);
+  }
+  return leaves;
+}
 
 export default async function TopicPage({
   params,
@@ -31,7 +56,7 @@ export default async function TopicPage({
     supabase
       .from("study_plan_topics")
       .select(
-        "id, heading, week_label, due_date, source_excerpt, parent_id, study_plans!inner(class_id)"
+        "id, heading, week_label, due_date, source_excerpt, parent_id, study_plan_id, study_plans!inner(class_id)"
       )
       .eq("id", topicId)
       .eq("study_plans.class_id", id)
@@ -43,21 +68,35 @@ export default async function TopicPage({
       .order("order_index"),
     supabase
       .from("lessons")
-      .select("id, order_index, title, content")
+      .select("id, order_index, title, content, outline, quiz")
       .eq("topic_id", topicId)
       .order("order_index"),
   ]);
   if (!topic) notFound();
 
-  const { data: parent } = await (topic.parent_id
-    ? supabase
-        .from("study_plan_topics")
-        .select("id, heading")
-        .eq("id", topic.parent_id)
-        .single()
-    : Promise.resolve({ data: null }));
+  const [{ data: parent }, { data: allTopics }] = await Promise.all([
+    topic.parent_id
+      ? supabase
+          .from("study_plan_topics")
+          .select("id, heading")
+          .eq("id", topic.parent_id)
+          .single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("study_plan_topics")
+      .select("id, heading, order_index, parent_id")
+      .eq("study_plan_id", topic.study_plan_id),
+  ]);
 
   const isUnit = (subtopics?.length ?? 0) > 0;
+  const lessonRows = (lessons ?? []) as Lesson[];
+  const hasLessons = lessonRows.some((l) => l.content);
+
+  // Prev/next across the flattened leaf sequence (only meaningful on leaves).
+  const leaves = flattenLeaves((allTopics ?? []) as NavTopic[]);
+  const idx = leaves.findIndex((l) => l.id === topicId);
+  const prev = idx > 0 ? leaves[idx - 1] : null;
+  const next = idx >= 0 && idx < leaves.length - 1 ? leaves[idx + 1] : null;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 p-6 sm:p-10">
@@ -84,17 +123,7 @@ export default async function TopicPage({
 
       {isUnit ? (
         <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-lg text-foreground">Lessons in this unit</h2>
-            <button
-              type="button"
-              disabled
-              title="Coming soon"
-              className="rounded-full border border-border px-3 py-1.5 text-xs text-muted opacity-60"
-            >
-              Unit test (coming soon)
-            </button>
-          </div>
+          <h2 className="font-serif text-lg text-foreground">Lessons in this unit</h2>
           <div className="flex flex-col gap-3">
             {subtopics!.map((s) => (
               <Link key={s.id} href={`/dashboard/classes/${id}/topics/${s.id}`}>
@@ -109,29 +138,84 @@ export default async function TopicPage({
           </div>
         </section>
       ) : (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="font-serif text-lg text-foreground">Lessons</h2>
-            <button
-              type="button"
-              disabled
-              title="Coming soon"
-              className="rounded-full border border-border px-3 py-1.5 text-xs text-muted opacity-60"
-            >
-              Lesson test (coming soon)
-            </button>
+            <form action={generateLessons.bind(null, id, topicId)}>
+              <SubmitButton
+                variant={hasLessons ? "secondary" : "primary"}
+                pendingText="Generating…"
+              >
+                {hasLessons ? "Regenerate lessons" : "Generate lessons"}
+              </SubmitButton>
+            </form>
           </div>
-          <div className="flex flex-col gap-3">
-            {(lessons as Lesson[] | null)?.map((lesson) => (
-              <Card key={lesson.id} className="flex flex-col gap-2 p-5">
-                <span className="font-medium text-foreground">{lesson.title}</span>
-                <p className="text-sm text-muted">
-                  {lesson.content ?? "Lesson content isn't generated yet."}
-                </p>
-              </Card>
-            ))}
-          </div>
+
+          {hasLessons ? (
+            <div className="flex flex-col gap-4">
+              {lessonRows.map((lesson) => (
+                <Card key={lesson.id} className="flex flex-col gap-3 p-5">
+                  <h3 className="font-serif text-lg text-foreground">{lesson.title}</h3>
+
+                  {lesson.outline && lesson.outline.length > 0 && (
+                    <ul className="flex flex-col gap-1">
+                      {lesson.outline.map((point, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-muted">
+                          <span className="text-accent">•</span>
+                          {point}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {lesson.content && (
+                    <div className="flex flex-col gap-3 border-t border-border pt-3 text-sm text-foreground">
+                      {lesson.content.split("\n\n").map((para, i) => (
+                        <p key={i} className="whitespace-pre-wrap leading-relaxed">
+                          {para}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {lesson.quiz && <Quiz questions={lesson.quiz} />}
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-5 text-sm text-muted">
+              No lessons yet. Click <span className="text-foreground">Generate lessons</span>{" "}
+              to create them for this topic.
+            </Card>
+          )}
         </section>
+      )}
+
+      {(prev || next) && (
+        <nav className="flex items-center justify-between gap-3 border-t border-border pt-5">
+          {prev ? (
+            <Link
+              href={`/dashboard/classes/${id}/topics/${prev.id}`}
+              className="flex flex-col items-start rounded-xl border border-border px-4 py-2.5 transition-colors hover:border-accent/50"
+            >
+              <span className="text-xs text-muted">← Previous</span>
+              <span className="text-sm text-foreground">{prev.heading}</span>
+            </Link>
+          ) : (
+            <span />
+          )}
+          {next ? (
+            <Link
+              href={`/dashboard/classes/${id}/topics/${next.id}`}
+              className="flex flex-col items-end rounded-xl border border-border px-4 py-2.5 text-right transition-colors hover:border-accent/50"
+            >
+              <span className="text-xs text-muted">Next →</span>
+              <span className="text-sm text-foreground">{next.heading}</span>
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
       )}
     </div>
   );

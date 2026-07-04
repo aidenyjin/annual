@@ -105,20 +105,11 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
     .select("id, order_index");
   if (topicsError) throw new Error(topicsError.message);
 
-  // Leaf topics (no subtopics) get their lesson placeholder now; topics
-  // with subtopics don't — the subtopics themselves are the leaves.
-  const leafTopicIds: string[] = [];
-  const leafTopicTitles = new Map<string, string>();
-
+  // Subtopics for any grouped units. Lessons are NOT created here — they're
+  // generated on demand per topic via the "Generate lessons" button.
   const childRows = headings.flatMap((h, i) => {
     const parentRow = insertedTopLevel!.find((r) => r.order_index === i);
-    if (!parentRow) return [];
-
-    if (!h.subtopics || h.subtopics.length === 0) {
-      leafTopicIds.push(parentRow.id);
-      leafTopicTitles.set(parentRow.id, h.heading);
-      return [];
-    }
+    if (!parentRow || !h.subtopics || h.subtopics.length === 0) return [];
 
     return h.subtopics.map((sub, j) => ({
       study_plan_id: plan.id,
@@ -132,26 +123,9 @@ export async function regenerateStudyPlan(supabase: SupabaseClient, classId: str
   });
 
   if (childRows.length > 0) {
-    const { data: insertedChildren, error: childError } = await supabase
+    const { error: childError } = await supabase
       .from("study_plan_topics")
-      .insert(childRows)
-      .select("id, heading");
+      .insert(childRows);
     if (childError) throw new Error(childError.message);
-
-    for (const child of insertedChildren ?? []) {
-      leafTopicIds.push(child.id);
-      leafTopicTitles.set(child.id, child.heading);
-    }
-  }
-
-  if (leafTopicIds.length > 0) {
-    const lessonRows = leafTopicIds.map((topicId) => ({
-      topic_id: topicId,
-      order_index: 0,
-      title: leafTopicTitles.get(topicId)!,
-    }));
-
-    const { error: lessonError } = await supabase.from("lessons").insert(lessonRows);
-    if (lessonError) throw new Error(lessonError.message);
   }
 }
