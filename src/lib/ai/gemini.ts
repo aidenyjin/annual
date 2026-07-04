@@ -220,15 +220,16 @@ export async function generateHeadings(parsed: ParsedSyllabus): Promise<{ headin
   const prompt =
     "Turn this parsed syllabus data into a clean, ordered study plan a student can follow week by week. " +
     "Most items should be standalone top-level headings. But when several consecutive topics are clearly " +
-    "sub-parts of one broader unit (e.g. 'Levers', 'Pulleys', and 'Inclined Planes' all belonging to a " +
-    "'Simple Machines' unit), group them: create one parent heading for the unit and list the sub-parts " +
+    "sub-parts of one broader subject (for example, the sub-parts 'Levers', 'Pulleys', and 'Inclined Planes' " +
+    "belonging to 'Simple Machines'), group them: create one parent heading for the subject and list the sub-parts " +
     "under its 'subtopics' array instead of as separate top-level headings. Don't force grouping where it " +
-    "doesn't naturally fit — most syllabi will have a mix of grouped units and standalone topics. Keep " +
-    "every heading short (under 8 words) and student-facing. Ensure all headings and subtopics represent " +
-    "actual conceptual lessons or study topics; do NOT include practical labs, experiments, exams, or homework " +
-    "assignments as standalone headings or subtopics. Carry over the relevant 'details' text (or a " +
-    "tightened version of it) for each heading/subtopic so it can be shown later without re-reading the " +
-    "syllabus. Data:\n" +
+    "doesn't naturally fit — most syllabi will have a mix of grouped subjects and standalone topics. Keep " +
+    "every heading short (under 8 words) and student-facing (do not append the word 'Unit' to parent headings unless it is explicitly " +
+    "named that way in the syllabus). " +
+    "Ensure all headings and subtopics represent actual conceptual lessons, lectures, or study topics (such as 'Levers' or 'Pulleys'). " +
+    "Do NOT include practical labs/experiments, homework submissions, exams, or projects as standalone lesson headings or subtopics. " +
+    "Carry over the relevant 'details' text (or a tightened version of it) for each heading/subtopic so it can be shown later " +
+    "without re-reading the syllabus. Data:\n" +
     JSON.stringify(parsed);
 
   const text = await generateContent(prompt, schema);
